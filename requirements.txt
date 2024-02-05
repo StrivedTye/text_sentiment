@@ -1,0 +1,7 @@
+EasyDict
+pytorch == 1.13.0
+torchtext == 0.14.0
+pandas
+transformers
+numpy
+openpyxl
