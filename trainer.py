@@ -5,10 +5,10 @@ import random
 import numpy as np
 import torch
 import torch.nn.functional as F
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm, trange
 
-from transformers import AdamW
+from torch.optim import AdamW
 
 logger = logging.getLogger(__name__)
 
@@ -51,32 +51,31 @@ def train(args, model, train_dataloader, test_dataloader):
 
     logger.info("***** Running training *****")
     logger.info("  Num Epochs = %d", args.num_train_epochs)
-    logger.info("  Instantaneous batch size per GPU = %d", args.per_gpu_train_batch_size)
-    logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
+    logger.info("  Instantaneous batch size per GPU = %d", args.train_batch_size)
 
     set_seed(args)
     global_step = 0
     for epoch in trange(int(args.num_train_epochs), desc="Epoch"):
         loss_sum = 0
         dataset_len = len(train_dataloader.dataset)
+        with tqdm(enumerate(train_dataloader), total=dataset_len, dynamic_ncols=True) as tbar:
+            for step, batch in tbar:
+                x, y, z, r = batch# x: room, y: travel, z: review, r: rating
+                x, y, z, r = x.cuda(), y.cuda(), z.cuda(), r.cuda()
+                batchsize = x.shape[0]
 
-        for step, batch in enumerate(train_dataloader):
-            x, y, z, r = batch# x: room, y: travel, z: review, r: rating
-            x, y, z, r = x.cuda(), y.cuda(), z.cuda(), r.cuda()
-            batchsize = x.shape[0]
+                hat_r = model(x, y, z)  # [B, 1]
+                loss = citerion(hat_r, r.unsqueeze(-1))
 
-            hat_r = model(x, y, z)  # [B, 1]
-            loss = citerion(hat_r, r.unsqueeze(-1))
+                optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+                optimizer.step()
 
-            optimizer.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
-            optimizer.step()
+                loss_sum += loss * batchsize
 
-            loss_sum += loss * batchsize
-
-            global_step += 1
-            tb_writer.add_scalar('train_loss', loss, global_step)
+                global_step += 1
+                tb_writer.add_scalar('train_loss', loss, global_step)
 
         print(f'Epoch {epoch}. loss: {loss_sum / dataset_len}')
 

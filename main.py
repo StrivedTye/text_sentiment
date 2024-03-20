@@ -12,7 +12,6 @@ from transformers import (BertConfig,
                           BertTokenizer)
 from torch.utils.data import DataLoader
 
-from datasets import load_datasets_and_vocabs
 from models import Pure_Bert
 from trainer import train
 from datasets import HotelDataset, AmazonDataset, collate_fn
@@ -31,33 +30,35 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     # Required parameters
-    parser.add_argument('--dataset_name', type=str, default='hotel', help='Choose absa dataset.')
+    parser.add_argument('--dataset_name', type=str, default='hotel', help='Choose dataset.')
+    parser.add_argument('--dataset_path', type=str, default='./data/hotel_cleaned.xlsx', help='dataset path.')
+
     parser.add_argument('--output_dir', type=str, default='./',
                         help='Directory to store intermedia data, such as vocab, embeddings, tags_vocab.')
 
     parser.add_argument('--cuda_id', type=str, default='0', help='Choose which GPUs to run')
-    parser.add_argument('--seed', type=int, default=2019, help='random seed for initialization')
+    parser.add_argument('--seed', type=int, default=2024, help='random seed for initialization')
 
     # Model parameters
-    parser.add_argument('--glove_dir', type=str, default='./',
+    parser.add_argument('--glove_dir', type=str, default='/home/tye/code/HuggingFaceH4/',
                         help='Directory storing glove embeddings')
-    parser.add_argument('--bert_model_dir', type=str, default='./',
+    parser.add_argument('--bert_model_dir', type=str, default='../HuggingFaceH4/bert-base-uncased',
                         help='Path to pre-trained Bert model.')
 
     parser.add_argument('--dropout', type=float, default=0,
                         help='Dropout rate for embedding.')
 
-    parser.add_argument('--embedding_type', type=str, default='glove', choices=['glove', 'bert'])
+    parser.add_argument('--embedding_type', type=str, default='bert', choices=['glove', 'bert'])
 
-    parser.add_argument('--hidden_size', type=int, default=300,
-                        help='Hidden size of bilstm, in early stage.')
+    parser.add_argument('--hidden_size', type=int, default=768,
+                        help='Hidden size of bert, in early stage.')
     parser.add_argument('--num_mlps', type=int, default=2,
                         help='Number of mlps in the last of model.')
 
     # Training parameters
-    parser.add_argument("--per_gpu_train_batch_size", default=16, type=int,
+    parser.add_argument("--train_batch_size", default=16, type=int,
                         help="Batch size per GPU/CPU for training.")
-    parser.add_argument("--per_gpu_eval_batch_size", default=32, type=int,
+    parser.add_argument("--eval_batch_size", default=32, type=int,
                         help="Batch size per GPU/CPU for evaluation.")
     parser.add_argument('--gradient_accumulation_steps', type=int, default=2,
                         help="Number of updates steps to accumulate before performing a backward/update pass.")
@@ -110,11 +111,11 @@ def main():
 
     # Load datasets
     if args.dataset_name == 'hotel':
-        train_dataloader = DataLoader(HotelDataset(args, True), batch_size=32, shuffle=True, collate_fn=collate_fn)
-        test_dataloader = DataLoader(HotelDataset(args, False), batch_size=32, shuffle=False, collate_fn=collate_fn)
-    elif args.dataset_name == 'amazon':
-        train_dataloader = DataLoader(AmazonDataset(args, True), batch_size=32, shuffle=True, collate_fn=collate_fn)
-        test_dataloader = DataLoader(AmazonDataset(args, False), batch_size=32, shuffle=False, collate_fn=collate_fn)
+        train_dataloader = DataLoader(HotelDataset(args, True), batch_size=args.train_batch_size, shuffle=True, collate_fn=collate_fn)
+        test_dataloader = DataLoader(HotelDataset(args, False), batch_size=args.train_batch_size, shuffle=False, collate_fn=collate_fn)
+    else: #'amazon'
+        train_dataloader = DataLoader(AmazonDataset(args, True), batch_size=args.train_batch_size, shuffle=True, collate_fn=collate_fn)
+        test_dataloader = DataLoader(AmazonDataset(args, False), batch_size=args.train_batch_size, shuffle=False, collate_fn=collate_fn)
 
     # Build Model
     model = Pure_Bert(args)

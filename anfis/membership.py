@@ -238,7 +238,7 @@ def make_anfis(x, num_mfs=5, num_out=1, hybrid=True):
     for i in range(num_invars):
         # 计算高斯隶属函数的方差
         sigma = ranges[i] / num_mfs
-        mulist = torch.linspace(minvals[i], maxvals[i], num_mfs).tolist()
+        mulist = torch.linspace(float(minvals[i]), float(maxvals[i]), num_mfs).tolist()
         """
             invars = [
             ['x0', [GaussMembFunc(), ...]], 

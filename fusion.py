@@ -1,10 +1,47 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import pytorch_utils as pt_utils
 
 def mask_logits(target, mask):
     return target * mask + (1 - mask) * (-1e30)
+
+
+class P2B_XCorr(nn.Module):
+    def __init__(self, feature_channel, hidden_channel, out_channel):
+        mlp_in_channel = feature_channel + 1
+
+        self.cosine = nn.CosineSimilarity(dim=1)
+        self.mlp = pt_utils.SharedMLP([mlp_in_channel, hidden_channel, hidden_channel, hidden_channel], bn=True)
+        self.fea_layer = (pt_utils.Seq(hidden_channel)
+                          .conv1d(hidden_channel, bn=True)
+                          .conv1d(out_channel, activation=None))
+
+    def forward(self, template_feature, search_feature):
+        """
+
+        :param template_feature: B,f,M
+        :param search_feature: B,f,N
+        :return:
+        """
+        B = template_feature.size(0)
+        f = template_feature.size(1)
+        n1 = template_feature.size(2)
+        n2 = search_feature.size(2)
+        final_out_cla = self.cosine(template_feature.unsqueeze(-1).expand(B, f, n1, n2),
+                                    search_feature.unsqueeze(2).expand(B, f, n1, n2))  # B,n1,n2
+
+        fusion_feature = torch.cat(
+            (final_out_cla.unsqueeze(1), template_feature.unsqueeze(-1).expand(B, f, n1, n2)),
+            dim=1)  # B,1+f,n1,n2
+
+        fusion_feature = self.mlp(fusion_feature)
+
+        fusion_feature = F.max_pool2d(fusion_feature, kernel_size=[fusion_feature.size(2), 1])  # B, f, 1, n2
+        fusion_feature = fusion_feature.squeeze(2)  # B, f, n2
+        fusion_feature = self.fea_layer(fusion_feature)
+
+        return fusion_feature
 
 
 class RelationAttention(nn.Module):

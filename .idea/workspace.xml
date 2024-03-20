@@ -15,11 +15,19 @@
       </list>
     </option>
   </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
   <component name="ProjectId" id="2btCfUvvm9Yh11gliQy5hp7Sjuw" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
   </component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\Study\code\text_sentiment" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="D:\Study\code\text_sentiment\anfis" />
     </key>
@@ -47,10 +55,26 @@
       <option name="presentableId" value="Default" />
       <updated>1707025091996</updated>
       <workItem from="1707025093649" duration="33978000" />
+      <workItem from="1707292811640" duration="9295000" />
+      <workItem from="1707303336530" duration="15000" />
+      <workItem from="1707303386963" duration="11653000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="COLUMN_ORDER" />
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
 </project>
