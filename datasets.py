@@ -92,7 +92,7 @@ class AmazonDataset(Dataset):
             self.GLOVE = GloVe(name='840B', dim=300, cache=config.glove_dir)
         else:
             bert_config = BertConfig.from_pretrained(config.bert_model_dir)
-            self.tokenizer = BertTokenizer.from_pretrained(config.bert_model_dir)
+            self.tokenizer = BertTokenizer.from_pretrained(config.bert_model_dir, model_max_length=512)
             self.bert = BertModel.from_pretrained(config.bert_model_dir, config=bert_config)
 
     def _read_data(self, is_training):
@@ -122,9 +122,9 @@ class AmazonDataset(Dataset):
 
         else:
             try:
-                text_ids = self.tokenizer.encode(text)
-                manufacturer_ids = self.tokenizer.encode(manufacturer)
-                category_ids = self.tokenizer.encode(category)
+                text_ids = self.tokenizer.encode(text, truncation=True)
+                manufacturer_ids = self.tokenizer.encode(manufacturer, truncation=True)
+                category_ids = self.tokenizer.encode(category, truncation=True)
 
                 # text_encoded = self.tokenizer(text, return_tensors='pt')
                 # text_embeddings = self.bert(**text_encoded) #[1, L, D] [1, D]

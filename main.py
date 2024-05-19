@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 from models import Pure_Bert
 from trainer import train
 from datasets import HotelDataset, AmazonDataset, collate_fn
+from tester import test
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,9 @@ def parse_args():
 
     parser.add_argument('--cuda_id', type=str, default='0', help='Choose which GPUs to run')
     parser.add_argument('--seed', type=int, default=2024, help='random seed for initialization')
+
+    parser.add_argument('--test', action='store_true', default=False, help='test stage')
+    parser.add_argument('--checkpoint', type=str, default=None, help='pre-trained network')
 
     # Model parameters
     parser.add_argument('--glove_dir', type=str, default='/home/tye/code/HuggingFaceH4/',
@@ -121,9 +125,18 @@ def main():
     model = Pure_Bert(args)
     model.to(args.device)
 
+    #load previous network weights
+    if args.checkpoint is not None:
+        checkpoint = torch.load(args.checkpoint)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        logger.info('Using pretrain model.')
+    else:
+        logger.info('No existing model, starting training from scratch.')
 
-    # train
-    train(args, model, train_dataloader, test_dataloader)
+    if args.train:
+        train(args, model, train_dataloader, test_dataloader)
+    else:
+        test(args, model, test_dataloader)
 
 
 if __name__ == "__main__":

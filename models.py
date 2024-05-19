@@ -24,7 +24,7 @@ class Pure_Bert(nn.Module):
         # self.fusion = RelationAttention(in_dim=2*config.hidden_size, hidden_dim=128)
         self.fusion = P2B_XCorr(config.hidden_size, 128, 256)
 
-        layers = [nn.Linear(config.hidden_size, hidden_size),
+        layers = [nn.Linear(hidden_size, hidden_size),
                   nn.ReLU(),
                   nn.Linear(hidden_size, 1)
                   ]

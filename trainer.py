@@ -79,6 +79,18 @@ def train(args, model, train_dataloader, test_dataloader):
 
         print(f'Epoch {epoch}. loss: {loss_sum / dataset_len}')
 
+        # save checkpoint
+        os.makedirs('./checkpoints/', exist_ok=True)
+        savepath = os.path.join('./checkpoints', 'net_%d.pth'%(epoch))
+        logger.info('Saving at %s' % savepath)
+
+        state = {
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+        }
+        torch.save(state, savepath)
+        print('Epoch:', epoch, 'the model has been saved')
+
         # test
         accuracy = 0
         dataset_len = len(test_dataloader.dataset)

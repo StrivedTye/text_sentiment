@@ -9,6 +9,7 @@ def mask_logits(target, mask):
 
 class P2B_XCorr(nn.Module):
     def __init__(self, feature_channel, hidden_channel, out_channel):
+        super(P2B_XCorr, self).__init__()
         mlp_in_channel = feature_channel + 1
 
         self.cosine = nn.CosineSimilarity(dim=1)
