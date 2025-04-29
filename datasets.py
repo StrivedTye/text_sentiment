@@ -6,6 +6,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchtext.data import get_tokenizer
 from torchtext.vocab import GloVe
 from transformers import BertModel, BertConfig, BertPreTrainedModel, BertTokenizer
+from gensim.models.keyedvectors import KeyedVectors
 
 
 def collate_fn(batch):
@@ -30,7 +31,6 @@ def collate_fn(batch):
     return x_pad, y_pad, z_pad, r
 
 
-
 class HotelDataset(Dataset):
     def __init__(self, config, is_training=True):
 
@@ -41,6 +41,9 @@ class HotelDataset(Dataset):
         if self.embedding_type == "glove":
             self.tokenizer = get_tokenizer('basic_english')
             self.GLOVE = GloVe(name='840B', dim=300, cache=config.glove_dir)
+        elif  self.embedding_type == "w2v":
+            self.tokenizer = get_tokenizer('basic_english')
+            self.W2V = KeyedVectors.load_word2vec_format(config.w2v_dir, binary=True, limit=300000)
         else:
             self.tokenizer = BertTokenizer.from_pretrained(config.bert_model_dir)
 
@@ -51,6 +54,15 @@ class HotelDataset(Dataset):
 
     def __len__(self):
         return self.data.shape[0]
+
+    def _get_w2v(self, word_list):
+        embeding_list = []
+        for w in self.tokenizer(word_list):
+            if w not in self.W2V.key_to_index:
+                embeding_list.append(torch.zeros(300))
+            else:
+                embeding_list.append(torch.tensor(self.W2V[w]))
+        return torch.stack(embeding_list, dim=0)
 
     def __getitem__(self, id):
 
@@ -67,8 +79,8 @@ class HotelDataset(Dataset):
             text_embeddings = self.GLOVE.get_vecs_by_tokens(self.tokenizer(text))
             room_type_embeddings = self.GLOVE.get_vecs_by_tokens(self.tokenizer(room_type))
             travel_type_embeddings = self.GLOVE.get_vecs_by_tokens(self.tokenizer(travel_type))
-
             return room_type_embeddings, travel_type_embeddings, text_embeddings, rating
+
         else:  # bert
             try:
                 text_ids = self.tokenizer.encode(text)
@@ -87,9 +99,15 @@ class AmazonDataset(Dataset):
         self.data = self._read_data(is_training)
         self.embedding_type = config.embedding_type
 
+        self.helpfulness_max = max(self.data.iloc[:, 3])
+        self.rating_max = max(self.data.iloc[:, 5])
+
         if self.embedding_type == "glove":
             self.tokenizer = get_tokenizer('basic_english')
             self.GLOVE = GloVe(name='840B', dim=300, cache=config.glove_dir)
+        elif  self.embedding_type == "w2v":
+            self.tokenizer = get_tokenizer('basic_english')
+            self.W2V = KeyedVectors.load_word2vec_format(config.w2v_dir, binary=True, limit=300000)
         else:
             bert_config = BertConfig.from_pretrained(config.bert_model_dir)
             self.tokenizer = BertTokenizer.from_pretrained(config.bert_model_dir, model_max_length=512)
@@ -103,28 +121,52 @@ class AmazonDataset(Dataset):
     def __len__(self):
         return self.data.shape[0]
 
-    def __getitem__(self, id):
-        manufacturer = self.data.iloc[id, 0]
-        category = self.data.iloc[id, 1]
-        rating = self.data.iloc[id, 2]
-        text = self.data.iloc[id, 3]
+    def _get_w2v(self, word_list):
+        embeding_list = []
+        for w in self.tokenizer(word_list):
+            if w not in self.W2V.key_to_index:
+                embeding_list.append(torch.zeros(300))
+            else:
+                embeding_list.append(torch.tensor(self.W2V[w]))
+        return torch.stack(embeding_list, dim=0)
 
-        # normalizing the score into (0, 1), assuming the highest score is 5
-        rating = float(rating) / 5
+    def __getitem__(self, id):
+        # manufacturer = self.data.iloc[id, 0]
+        # category = self.data.iloc[id, 1]
+        # rating = self.data.iloc[id, 2]
+        # text = self.data.iloc[id, 3]
+
+        product = self.data.iloc[id, 0]
+        manufacturer = self.data.iloc[id, 1]
+        category = self.data.iloc[id, 2]
+        helpfulness = self.data.iloc[id, 3]
+        text = self.data.iloc[id, 4]
+        rating = self.data.iloc[id, 5]
+
+        # normalizing the score into (0, 1)
+        helpfulness = float(helpfulness) / self.helpfulness_max
+        rating = float(rating) / self.rating_max
 
         if self.embedding_type == "glove":
-
+            product_embeddings = self.GLOVE.get_vecs_by_tokens(self.tokenizer(product))  # [L, D]
             text_embeddings = self.GLOVE.get_vecs_by_tokens(self.tokenizer(text))
             manufacturer_embeddings = self.GLOVE.get_vecs_by_tokens(self.tokenizer(manufacturer))
             category_embeddings = self.GLOVE.get_vecs_by_tokens(self.tokenizer(category))
+            return product_embeddings, manufacturer_embeddings, category_embeddings, helpfulness, text_embeddings, rating
 
-            return manufacturer_embeddings, category_embeddings, text_embeddings, rating
+        elif self.embedding_type == "w2v":
+            product_embeddings = self._get_w2v(product)
+            text_embeddings = self._get_w2v(text)
+            manufacturer_embeddings = self._get_w2v(manufacturer)
+            category_embeddings = manufacturer_embeddings  #
+            return product_embeddings, manufacturer_embeddings, category_embeddings, helpfulness, text_embeddings, rating
 
         else:
             try:
-                text_ids = self.tokenizer.encode(text, truncation=True)
+                product_ids = self.tokenizer.encode(product, truncation=True)
                 manufacturer_ids = self.tokenizer.encode(manufacturer, truncation=True)
                 category_ids = self.tokenizer.encode(category, truncation=True)
+                text_ids = self.tokenizer.encode(text, truncation=True)
 
                 # text_encoded = self.tokenizer(text, return_tensors='pt')
                 # text_embeddings = self.bert(**text_encoded) #[1, L, D] [1, D]
@@ -139,8 +181,7 @@ class AmazonDataset(Dataset):
             except ValueError:
                 return self.__getitem__(0)
 
-            return manufacturer_ids, category_ids, text_ids, rating
-            # return manufacturer_embeddings, category_embeddings, text_embeddings, rating
+            return product_ids, manufacturer_ids, category_ids, helpfulness, text_ids, rating
 
 
 if __name__ == "__main__":

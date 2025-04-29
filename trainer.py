@@ -29,10 +29,8 @@ def get_bert_optimizer(args, model):
         {'params': [p for n, p in model.named_parameters() if any(
             nd in n for nd in no_decay)], 'weight_decay': 0.0}
     ]
-    optimizer = AdamW(optimizer_grouped_parameters,
-                      lr=args.learning_rate, eps=args.adam_epsilon)
-    # scheduler = WarmupLinearSchedule(
-    #     optimizer, warmup_steps=args.warmup_steps, t_total=t_total)
+    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    # scheduler = WarmupLinearSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=t_total)
     return optimizer
 
 
@@ -60,11 +58,11 @@ def train(args, model, train_dataloader, test_dataloader):
         dataset_len = len(train_dataloader.dataset)
         with tqdm(enumerate(train_dataloader), total=dataset_len, dynamic_ncols=True) as tbar:
             for step, batch in tbar:
-                x, y, z, r = batch# x: room, y: travel, z: review, r: rating
-                x, y, z, r = x.cuda(), y.cuda(), z.cuda(), r.cuda()
+                p, x, y, h, z, r = batch
+                p, x, y, h, z, r = p.cuda(), x.cuda(), y.cuda(), h.cuda(), z.cuda(), r.cuda()
                 batchsize = x.shape[0]
 
-                hat_r = model(x, y, z)  # [B, 1]
+                hat_r = model(p, x, y, h, z)  # [B, 1]
                 loss = citerion(hat_r, r.unsqueeze(-1))
 
                 optimizer.zero_grad()
@@ -96,11 +94,11 @@ def train(args, model, train_dataloader, test_dataloader):
         dataset_len = len(test_dataloader.dataset)
         model.eval()
         for _, batch in enumerate(test_dataloader):
-            x, y, z, r = batch# x: room, y: travel, z: review, r: rating
-            x, y, z, r = x.cuda(), y.cuda(), z.cuda(), r.cuda()
+            p, x, y, h, z, r = batch
+            p, x, y, h, z, r = p.cuda(), x.cuda(), y.cuda(), h.cuda(), z.cuda(), r.cuda()
 
             with torch.no_grad():
-                hat_r = model(x, y, z)  # [B, 1]
+                hat_r = model(p, x, y, h, z)  # [B, 1]
 
             diff = torch.norm(hat_r.squeeze(1) - r)
             predictions = torch.where(diff < 0.1, 1, 0)
